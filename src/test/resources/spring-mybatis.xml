@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:aop="http://www.springframework.org/schema/aop" xmlns:tx="http://www.springframework.org/schema/tx"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans 
+    http://www.springframework.org/schema/beans/spring-beans-3.2.xsd 
+    http://www.springframework.org/schema/aop 
+    http://www.springframework.org/schema/aop/spring-aop-3.2.xsd 
+    http://www.springframework.org/schema/tx  
+    http://www.springframework.org/schema/tx/spring-tx-3.2.xsd ">
+    
+	<bean id="dataSource1" class="com.atomikos.jdbc.AtomikosDataSourceBean" init-method="init" destroy-method="close">
+		<property name="uniqueResourceName">
+			<value>mysql1</value>
+		</property>
+		<property name="xaDataSourceClassName" value="${db.className}"/>
+		<property name="xaProperties">
+			<props>
+				<prop key="user">${db1.jdbc_username}</prop>
+				<prop key="password">${db1.jdbc_password}</prop>
+				<prop key="URL">${db1.jdbc_url}</prop>
+			</props>
+		</property>
+		<property name="poolSize" value="${db.poolSize}" />
+		<property name="reapTimeout">
+			<value>${db.reapTimeout}</value>
+		</property>
+	</bean>
+	<bean id="sessionFactory1" class="org.mybatis.spring.SqlSessionFactoryBean">
+		<property name="dataSource" ref="dataSource1" />
+		<property name="mapperLocations" value="classpath*:com/gracebrother/**/dao/xml/*Dao.xml" />
+		<property name="plugins">
+			<list>
+				<ref bean="shardPlugin" />
+			</list>
+		</property>
+	</bean>
+	<bean id="dataSource2" class="com.atomikos.jdbc.AtomikosDataSourceBean" init-method="init" destroy-method="close">
+		<property name="uniqueResourceName">
+			<value>mysql2</value>
+		</property>
+		<property name="xaDataSourceClassName" value="${db.className}" />
+		<property name="xaProperties">
+			<props>
+				<prop key="user">${db2.jdbc_username}</prop>
+				<prop key="password">${db2.jdbc_password}</prop>
+				<prop key="URL">${db2.jdbc_url}</prop>
+			</props>
+		</property>
+		<property name="poolSize" value="${db.poolSize}" />
+		<property name="reapTimeout">
+			<value>${db.reapTimeout}</value>
+		</property>
+	</bean>
+	<bean id="sessionFactory2" class="org.mybatis.spring.SqlSessionFactoryBean">
+		<property name="dataSource" ref="dataSource2" />
+		<property name="mapperLocations" value="classpath*:com/gracebrother/**/dao/xml/*Dao.xml" />
+		<property name="plugins">
+			<list>
+				<ref bean="shardPlugin" />
+			</list>
+		</property>
+	</bean>
+
+	<bean id="sqlSessionTemplate" class="com.gracebrother.multipledatasource.CustomSqlSessionTemplate">
+		<!-- default datasource -->
+		<constructor-arg ref="sessionFactory1" />
+		<property name="targetSqlSessionFactorys">
+			<map>
+				<entry value-ref="sessionFactory1" key="dataSource1" />
+				<entry value-ref="sessionFactory2" key="dataSource2" />
+			</map>
+		</property>
+	</bean>
+
+	<bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+		<property name="basePackage" value="com.gracebrother.**.dao" />
+		<property name="sqlSessionTemplateBeanName" value="sqlSessionTemplate" />
+	</bean>
+	<bean id="atomikosTransactionManager" class="com.atomikos.icatch.jta.UserTransactionManager" init-method="init" destroy-method="close">
+		<description>UserTransactionManager</description>
+		<property name="forceShutdown">
+			<value>true</value>
+		</property>
+	</bean>
+
+	<bean id="atomikosUserTransaction" class="com.atomikos.icatch.jta.UserTransactionImp">
+		<property name="transactionTimeout" value="300" />
+	</bean>
+
+	<!-- JTA transactionManager -->
+	<bean id="transactionManager"
+		class="org.springframework.transaction.jta.JtaTransactionManager">
+		<property name="transactionManager" ref="atomikosTransactionManager" />
+		<property name="userTransaction" ref="atomikosUserTransaction" />
+		<property name="allowCustomIsolationLevels" value="true" />
+	</bean>
+
+	<tx:advice id="transactionAdvice" transaction-manager="transactionManager">
+		<tx:attributes>
+			<tx:method name="add*" propagation="REQUIRED" />
+			<tx:method name="append*" propagation="REQUIRED" />
+			<tx:method name="insert*" propagation="REQUIRED" />
+			<tx:method name="save*" propagation="REQUIRED" />
+			<tx:method name="update*" propagation="REQUIRED" />
+			<tx:method name="modify*" propagation="REQUIRED" />
+			<tx:method name="edit*" propagation="REQUIRED" />
+			<tx:method name="delete*" propagation="REQUIRED" />
+			<tx:method name="remove*" propagation="REQUIRED" />
+			<tx:method name="repair" propagation="REQUIRED" />
+			<tx:method name="delAndRepair" propagation="REQUIRED" />
+			<tx:method name="execute*" propagation="REQUIRED" />
+			<tx:method name="batch*" propagation="REQUIRED" />
+
+			<tx:method name="get*" propagation="REQUIRED" read-only="true" />
+			<tx:method name="count*" propagation="REQUIRED" read-only="true" />
+			<tx:method name="find*" propagation="REQUIRED" read-only="true" />
+			<tx:method name="load*" propagation="REQUIRED" read-only="true" />
+			<tx:method name="search*" propagation="REQUIRED" read-only="true" />
+			<tx:method name="datagrid*" propagation="REQUIRED" read-only="true" />
+
+			<tx:method name="*" read-only="true" />
+		</tx:attributes>
+	</tx:advice>
+	
+	<aop:config expose-proxy="true">
+		<aop:pointcut id="transactionPointcut" expression="execution(* com.gracebrother..*Service.*(..))" />
+		<aop:advisor pointcut-ref="transactionPointcut" advice-ref="transactionAdvice" />
+	</aop:config>
+
+	<aop:aspectj-autoproxy />
+
+	<!--auto scan @Shard and @Params -->
+	<bean class="com.gracebrother.sharding.builder.ShardScanner"> 
+		<!--your basePackage -->
+		<constructor-arg value="com.gracebrother" />
+	</bean >
+	<!-- shardingPlugin -->
+	<bean id="shardPlugin" class="com.gracebrother.sharding.plugin.ShardPlugin"></bean>
+</beans>
