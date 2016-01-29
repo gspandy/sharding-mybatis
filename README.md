@@ -7,16 +7,16 @@
 分表策略：
 使用分表步骤如下:
 
-1、使用自定义注解标记需要分表的Dao以及方法。
-@Shard
+1、使用自定义注解标记需要分表的Dao以及方法。<br>
+@Shard<br>
 public interface UserDao {
-	@Params(tables = {"user"}, strategy =UserStrategy.class)
-	public void insert(User u);
+    @Params(tables = {"user"}, strategy =UserStrategy.class)<br>
+    public void insert(User u);<br>
 }
 
-2、在SQL中使用上面定义的表名。
+2、在SQL中使用上面定义的表名。<br>
 <insert id="insert" parameterType="com.gracebrother.pojo.User">
-	insert into $[user] (id,
+	insert into "$[user]" (id,
 	name
 	)
 	values (#{id,jdbcType=INTEGER},
@@ -24,65 +24,65 @@ public interface UserDao {
 	)
 </insert>
 
-3、实现分表接口
-public class UserStrategy implements Strategy {
-	@Override
-	public String getTargetSql(String oldSql, Object parm, String[] tables) {
-		String targetSql = oldSql;
-		User u = (User) parm;
-		if (tables != null) {
-			for (String table : tables) {
-				if (u.getId() % 2 == 1) {
-					targetSql = targetSql.replace("$[" + table + "]", table + "1");
-				} else {
-					targetSql = targetSql.replace("$[" + table + "]", table + "2");
-				}
-			}
-		}
-		return targetSql;
-	}
+3、实现分表接口<br>
+public class UserStrategy implements Strategy {<br>
+	@Override<br>
+	public String getTargetSql(String oldSql, Object parm, String[] tables) {<br>
+		String targetSql = oldSql;<br>
+		User u = (User) parm;<br>
+		if (tables != null) {<br>
+			for (String table : tables) {<br>
+				if (u.getId() % 2 == 1) {<br>
+					targetSql = targetSql.replace("$[" + table + "]", table + "1");<br>
+				} else {<br>
+					targetSql = targetSql.replace("$[" + table + "]", table + "2");<br>
+				}<br>
+			}<br>
+		}<br>
+		return targetSql;<br>
+	}<br>
 
-}
+}<br>
 
 
-Support the JTA, Support multiple data source, support Sharding.
+Support the JTA, Support multiple data source, support Sharding.<br>
 
-EG:
+EG:<br>
 
-DataSource switch code :CustomerContextHolder.setContextType("targetDataSource");
+DataSource switch code :CustomerContextHolder.setContextType("targetDataSource");<br>
 
-Useing sharding you need:
-1、Use annotation like this
-@Shard
-public interface UserDao {
-	@Params(tables = {"user"}, strategy =UserStrategy.class)
-	public void insert(User u);
-}
-2、Use Defined table in SQL
-<insert id="insert" parameterType="com.gracebrother.pojo.User">
-	insert into $[user] (id,
-	name
-	)
-	values (#{id,jdbcType=INTEGER},
-	#{name,jdbcType=VARCHAR}
-	)
-</insert>
-3、Implements Strategy
-public class UserStrategy implements Strategy {
-	@Override
-	public String getTargetSql(String oldSql, Object parm, String[] tables) {
-		String targetSql = oldSql;
-		User u = (User) parm;
-		if (tables != null) {
-			for (String table : tables) {
-				if (u.getId() % 2 == 1) {
-					targetSql = targetSql.replace("$[" + table + "]", table + "1");
-				} else {
-					targetSql = targetSql.replace("$[" + table + "]", table + "2");
-				}
-			}
-		}
-		return targetSql;
-	}
+Useing sharding you need:<br>
+1、Use annotation like this<br>
+@Shard<br>
+public interface UserDao {<br>
+	@Params(tables = {"user"}, strategy =UserStrategy.class)<br>
+	public void insert(User u);<br>
+}<br>
+2、Use Defined table in SQL<br>
+<insert id="insert" parameterType="com.gracebrother.pojo.User"><br>
+	insert into "$[user]" (id,<br>
+	name<br>
+	)<br>
+	values (#{id,jdbcType=INTEGER},<br>
+	#{name,jdbcType=VARCHAR}<br>
+	)<br>
+</insert><br>
+3、Implements Strategy<br>
+public class UserStrategy implements Strategy {<br>
+	@Override<br>
+	public String getTargetSql(String oldSql, Object parm, String[] tables) {<br>
+		String targetSql = oldSql;<br>
+		User u = (User) parm;<br>
+		if (tables != null) {<br>
+			for (String table : tables) {<br>
+				if (u.getId() % 2 == 1) {<br>
+					targetSql = targetSql.replace("$[" + table + "]", table + "1");<br>
+				} else {<br>
+					targetSql = targetSql.replace("$[" + table + "]", table + "2");<br>
+				}<br>
+			}<br>
+		}<br>
+		return targetSql;<br>
+	}<br>
 
-}
+}<br>
